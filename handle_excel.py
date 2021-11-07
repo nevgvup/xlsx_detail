@@ -32,16 +32,19 @@ class handle_excel:
         return data
     def set_cell_value(self, row, cols, value):
         '''
-        获取某一个单元格内容
+        设置某一个单元格内容
         '''
         data = self.cur_sheet.cell(row = row, column = cols)
         data.value = value
-    def get_row_max(self):
+    def get_col_max(self):
         '''
-        获取当前活动页的最大行数
+        获取当前活动页的最大列数
         '''
-        row = self.cur_sheet.max_row
-        return row
+        col_num = 0
+        for col in self.cur_sheet.iter_cols():
+            col_num += 1
+        print("max_column:", self.cur_sheet.max_column, "col_num:", col_num)
+        return col_num
     def get_row_list(self,row):
         '''
         获取某一行的内容
@@ -63,20 +66,36 @@ class handle_excel:
                 break
             num += 1
         return col_num
+    def copy_row(self, row, num = 1):
+        '''
+        复制多行
+        '''
+        for i in range(num):
+            col_num = 0
+            new_row = row + i + 1
+            self.cur_sheet.insert_rows(new_row)
+            for cell in self.cur_sheet[row]:
+                col_num += 1
+                # print("col_num", col_num, "cell.value:", cell.value)
+                self.set_cell_value(new_row, col_num, cell.value)
 
-    # 列操作
-    def get_col_max(self):
+        self.xlsx_wb.save(self.xlsx_file_path)
+
+    # 行操作
+    def get_row_max(self):
         '''
         获取当前活动页的最大行数
         '''
-        column = 0
+        row_num = 0
         for row in self.cur_sheet.iter_rows():
-            column += 1
-        return column
+            row_num += 1
+        return row_num
     def insert_col(self, col_num, title):
         '''
         插入一列,附带标题
         '''
         self.cur_sheet.insert_cols(col_num)
         self.set_cell_value(1, col_num, title)
+        self.xlsx_wb.save(self.xlsx_file_path)
+    def save(self):
         self.xlsx_wb.save(self.xlsx_file_path)
