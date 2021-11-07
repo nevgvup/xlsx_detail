@@ -169,15 +169,9 @@ class detial_parse:
 
         return ''.join(price)
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('Usage:  xlsx_detail [file.xlsx]')
-        sys.exit()
-    src_file = sys.argv[1]
-    dst_file = "明细表_" + src_file
-    print("需要处理的文件名称:", src_file, "转换后的文件名称是:", dst_file)
-    shutil.copy(sys.argv[1], dst_file)
 
+# 处理xlsx文件
+def detail_xlsx(dst_file):
     xlsx_handle = handle_excel(dst_file)
     xlsx_pos = xlsx_position(xlsx_handle.get_col_num_from_row(1, "付款事项情况说明"), xlsx_handle.get_col_num_from_row(1, "付款金额"))
     xlsx_pos.auto_insert_col(xlsx_handle)       # 自动插入列数据
@@ -219,3 +213,54 @@ if __name__ == '__main__':
         # for result in result_list:
         # print("row_num:", row_num, "dst value:", dst_value.value)
     xlsx_handle.save()
+
+# 查找某个文件夹及其子文件夹下指定后缀名的所有文件
+def findAllFilesWithSpecifiedSuffix(target_dir, target_suffix="xlsx"):
+    find_res = []
+    target_suffix_dot = "." + target_suffix
+    walk_generator = os.walk(target_dir)
+    for root_path, dirs, files in walk_generator:
+        if len(files) < 1:
+            continue
+        for file in files:
+            file_name, suffix_name = os.path.splitext(file)
+            if suffix_name == target_suffix_dot:
+                find_res.append(os.path.join(root_path, file))
+    return find_res
+
+def mkdir(path):
+    # 去除首位空格
+    path=path.strip()
+    # 去除尾部 \ 符号
+    path=path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists=os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        os.makedirs(path)
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        return False
+
+if __name__ == '__main__':
+    root_dir = os.path.abspath('.')
+    dst_dir = os.path.join(root_dir, "结果输出")
+    file_list = findAllFilesWithSpecifiedSuffix(root_dir)
+    if len(file_list) <= 0:
+        print("未找到xlsx文件")
+        sys.exit()
+    mkdir(dst_dir)
+    print("file_list:", file_list)
+    for src_file in file_list:
+        file_name = os.path.basename(src_file)  # 返回文件名
+        dst_file = os.path.join(dst_dir, file_name)
+        print("dst file:", dst_file)
+        shutil.copy(src_file, dst_file)
+        detail_xlsx(dst_file)
