@@ -45,6 +45,22 @@ def is_chinese(string):
             return True
     return False
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+ 
+    return False
+
 def go_split(s, symbol):
     """
     根据多个分隔符，全部拆分字符串,symbol 字符串集合:
@@ -75,20 +91,20 @@ class detial_parse:
         for detail in detail_list:
             cell_dict = {}              # 解析出来的字典数据
             cell_list = self.parse_detail_spilt(detail)          # 返回值是个列表 ， cell_list[0]作为名称 
-            spec = self.parse_spec_param(cell_list[0])     # 解析规格
+            spec, name = self.parse_name_spec_param(cell_list[0])     # 解析规格
             for i in range(1, len(cell_list)):
                 if "number" not in  cell_dict:
                     parse_num, unit = self.parse_number_param(cell_list[i])       # 解析数量
-                    if len(parse_num) > 0:
+                    if len(parse_num) > 0 and is_number(parse_num):
                         cell_dict["number"] = float(parse_num)
                         cell_dict["unit"] = unit
                 if "unit_price" not in  cell_dict:
                     unit_price = self.parse_unit_price_param(cell_list[i])       # 解析单价
-                    if len(unit_price) > 0:
+                    if len(unit_price) > 0 and is_number(unit_price):
                         cell_dict["unit_price"] = float(unit_price)
             # print("规格:", spec)
             cell_dict["detail"] = detail
-            cell_dict["name"] = cell_list[0]
+            cell_dict["name"] = name
             cell_dict["spec"] = spec
             # 总价计算,需要存在数量和单价
             if "number" in  cell_dict and "unit_price" in  cell_dict:
@@ -122,7 +138,7 @@ class detial_parse:
         cell_list = go_split(detail, cfg_symbol)
         print("detail_split:", cell_list)
         return cell_list
-    def parse_spec_param(self, name_spec):
+    def parse_name_spec_param(self, name_spec):
         '''
         后续规格建议与名称一起，放到括号内，以冒号分割其他字符
         解析流程:
@@ -130,18 +146,33 @@ class detial_parse:
         2、无任何规格区分，需判断非中文汉字内容，直接作为规格使用
         能解析出来规格，返回规格数据，解析失败返回None
         '''
-        spec = re.findall(r'[(](.*?)[)]', name_spec)    # 获取到时，返回列表,否则返回原字符串
-        # print("name_spec:", name_spec, "spec:", spec)
-        if isinstance(spec, list) == True and len(spec) > 0:      # 找到规格
-            return ''.join(spec)
-        spec = re.sub(r'[^A-Za-z0-9\-\,\。\.\*]+', ' ', name_spec)      # 先把其余字符串替换成空格
+        # 先去除名称中的序号1、 2、 3、
+        # name_spec_tmp = re.findall(r'.*、', name_spec)    # 获取到时，返回列表,否则返回原字符串
+        name_spec_tmp = name_spec
+        name_spec_obj = re.search(r'(.*)、(.*)', name_spec)
+        if name_spec_obj:
+            print("可能存在序号!")
+            # 判断group1是否是数字
+            if is_number(name_spec_obj.group(1)):
+                print("当前是序号")
+                name_spec_tmp = name_spec_obj.group(2)
+            # print("name_spec_obj.group():", name_spec_obj.group())
+            # print("name_spec_obj.group(1):", name_spec_obj.group(1))
+            # print("name_spec_obj.group(2):", name_spec_obj.group(2))
+
+        print("name22222 去掉 序号 spec:", name_spec_tmp)
+        name_spec_m = re.match(r'(.*?)\((.*?)\)(.*?)', name_spec_tmp)
+        if name_spec_m:      # 找到规格,group2是规格
+            print("group(1):", name_spec_m.group(1), "group(2):", name_spec_m.group(2))
+            return ''.join(name_spec_m.group(2)), ''.join(name_spec_m.group(1))
+        spec = re.sub(r'[^A-Za-z0-9\-\,\。\.\*]+', ' ', name_spec_tmp)      # 先把其余字符串替换成空格
         spec = re.sub(r'[ ]+', ' ', spec)   # 去除多余的空格
-        # spec = re.sub("[^A-Za-z0-9\,\。]", "", name_spec)
+        # spec = re.sub("[^A-Za-z0-9\,\。]", "", name_spec_tmp)
         # print("spec param:", spec)
         if is_chinese(spec) == False:       # 解析的规格中没有中文，则认为解析成功
-            return ''.join(spec)
+            return ''.join(spec), name_spec_tmp
         # 以上都没解析到，则任务解析失败
-        print("规格解析失败，请使用括号或者纯英文和数字标识!:", name_spec)
+        print("规格解析失败，请使用括号或者纯英文和数字标识!:", name_spec_tmp)
         return None
     def parse_number_param(self, param):
         '''
@@ -153,7 +184,7 @@ class detial_parse:
             cfg_unit = r'.*个|.*套|.*只|.*g|.*kg|.*支|.*张|.*箱|.*桶|.*包|.*卷|.*根|.*米|.*升|.*瓶|.*袋'
         # print("cfg_unit:", cfg_unit)
         numer_tmp = re.findall(cfg_unit, param)
-        # print("parse number param:", param, "numer:", numer)
+        print("parse number param:", param, "numer:", numer_tmp)
         numer_tmp = ''.join(numer_tmp)
         numer = re.sub(r'[^0-9.]', '', numer_tmp)    # 获取数值0-9.
         unit = re.findall(r'[^0-9.]', numer_tmp)    # 单位
@@ -162,8 +193,8 @@ class detial_parse:
         '''
         解析出单价
         '''
-        price = re.findall(r'.*元/|单价.*元', param)
-        #print("param:", param, "price:", ''.join(price))
+        price = re.findall(r'.*元/|单价.*元|\*.*元', param)
+        print("param:", param, "price:", ''.join(price))
         price = ''.join(price)
         price = re.sub(r'[^0-9.]', '', price)    # 获取数值0-9.
 
