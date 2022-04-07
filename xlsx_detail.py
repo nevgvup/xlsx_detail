@@ -91,6 +91,10 @@ class detial_parse:
         for detail in detail_list:
             cell_dict = {}              # 解析出来的字典数据
             cell_list = self.parse_detail_spilt(detail)          # 返回值是个列表 ， cell_list[0]作为名称 
+            # 判断cell_list是否为空
+            if (len(cell_list) == 0):
+                continue
+
             spec, name = self.parse_name_spec_param(cell_list[0])     # 解析规格
             for i in range(1, len(cell_list)):
                 if "number" not in  cell_dict:

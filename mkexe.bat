@@ -1,0 +1,1 @@
+pyinstaller -F xlsx_detail.py
